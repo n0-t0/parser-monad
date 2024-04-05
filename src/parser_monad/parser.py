@@ -40,15 +40,15 @@ class Parser[A](ABC):
                 return outer_self.bind(lambda a: f.fmap(lambda x: x(a))).parse(s)
         return ApplyParser()
 
-    def filter(self, f: Callable[[A], bool], message: str) -> "Parser[A]":
+    def with_filter(self, f: Callable[[A], bool], message: str) -> "Parser[A]":
         outer_self = self  # Parser[A] instance
-        class FilterParser(Parser[A]):
+        class WithFilterParser(Parser[A]):
             @override
             def parse(self, s: str) -> either.Either[str, tuple[A, str]]:
                 return outer_self.parse(s).bind(
                     lambda x: either.Either.right(x) if f(x[0]) else either.Either.left(message)
                 )
-        return FilterParser()
+        return WithFilterParser()
 
 
 class ParserHelper:
