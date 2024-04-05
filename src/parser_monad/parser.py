@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Callable, override, cast
+import functools
 import either
 
 class Parser[A](ABC):
@@ -102,3 +103,26 @@ class ParserHelper:
             ParserHelper.some(p),
             ParserHelper.pure([])
         )
+
+def parser_monad(comprehension):
+    @functools.wraps(comprehension)
+    def computation[X](*args, **kargs) -> Parser[X]:
+        class CombinedParser(Parser[X]):
+            def parse(self, s: str) -> either.Either[str, tuple[X, str]]:
+                iter = comprehension(*args, **kargs)
+                res_s = s
+                try:
+                    result_parser: Parser = next(iter)
+                    while True:
+                        result: either.Either[str, tuple[X, str]] = result_parser.parse(res_s)
+                        print(result)
+                        match result.value:
+                            case either.Left(_):
+                                return result
+                            case either.Right(v):
+                                parsed_value, res_s = v
+                                result_parser = iter.send(parsed_value)
+                except StopIteration as e:
+                    return either.Either.right((e.value, res_s))
+        return CombinedParser()
+    return computation
