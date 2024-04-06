@@ -98,3 +98,85 @@ class BasicParser:
             BasicParser.nonEmptyList(p), BasicParser.emptyList()
         )
         return v
+
+    @staticmethod
+    def letter() -> parser.Parser[str]:
+        return BasicParser.satisfy(str.isalpha, "expect letter")
+
+    @staticmethod
+    def digit() -> parser.Parser[str]:
+        return BasicParser.satisfy(str.isdigit, "expect digit")
+
+    @staticmethod
+    @parser.parser_monad
+    def int_number():
+        v = yield parser.ParserHelper.some(BasicParser.digit())
+        return int("".join(v))
+
+    @staticmethod
+    @parser.parser_monad
+    def float_number():
+        v1 = yield parser.ParserHelper.some(BasicParser.digit())
+        _ = yield BasicParser.token(BasicParser.char("."))
+        v2 = yield parser.ParserHelper.some(BasicParser.digit())
+        return float("".join(v1) + "." + "".join(v2))
+
+    @staticmethod
+    @parser.parser_monad
+    def stringWithout(s: str):
+        # s must be a char
+        if len(s) != 1:
+            _ = yield parser.Parser.fail("expect a char")
+            return either.Left("expect a char")
+        else:
+            v = yield parser.ParserHelper.many(
+                BasicParser.satisfy(lambda x: x != s, f"expect not {s}")
+            )
+            return "".join(v)
+
+    @staticmethod
+    @parser.parser_monad
+    def stringWithouts(ls: list[str]):
+        for s in ls:
+            if len(s) != 1:
+                _ = yield parser.Parser.fail("expect a char")
+                return either.Left("expect a char")
+
+        v = yield parser.ParserHelper.many(
+            BasicParser.satisfy(lambda x: x in ls, f"expect not {ls}")
+        )
+        return "".join(v)
+
+    @staticmethod
+    @parser.parser_monad
+    def line():
+        v = yield BasicParser.stringWithout("\n")
+        return "".join(v)
+
+    @staticmethod
+    @parser.parser_monad
+    def nextLine():
+        _ = yield BasicParser.char("\n")
+        line = yield BasicParser.line()
+        return line
+
+    @staticmethod
+    @parser.parser_monad
+    def eof():
+        v = yield BasicParser.peek()
+        if v == "" or v == "\n":
+            return v
+        else:
+            _ = yield parser.Parser.fail("expect eof")
+            return either.Left("expect eof")
+
+    @staticmethod
+    @parser.parser_monad
+    def lines():
+        first_line = yield BasicParser.line()
+        next_lines = yield parser.ParserHelper.either(
+            parser.ParserHelper.many(BasicParser.nextLine()),
+            BasicParser.eof(),
+        )
+        all_lines = [first_line] + next_lines
+        return [line.rstrip('\r\n') for line in all_lines if line != ""]
