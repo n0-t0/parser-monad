@@ -21,6 +21,10 @@ class BasicParser:
         return OneCharparser()
 
     @staticmethod
+    def space() -> parser.Parser[str]:
+        return BasicParser.satisfy(str.isspace, "expect space")
+
+    @staticmethod
     def satisfy(f: Callable[[str], bool], message: str) -> parser.Parser[str]:
         return BasicParser.oneChar().with_filter(f, message)
 
@@ -48,7 +52,49 @@ class BasicParser:
                     return either.Either.left(f"expect {s}")
         return PostfixParser()
 
+    @staticmethod
+    @parser.parser_monad
+    def token[X](p: parser.Parser[X]):
+        _ = yield parser.ParserHelper.many(BasicParser.space())
+        v = yield p
+        _ = yield parser.ParserHelper.many(BasicParser.space())
+        return v
 
     @staticmethod
-    def space() -> parser.Parser[str]:
-        return BasicParser.satisfy(str.isspace, "expect space")
+    @parser.parser_monad
+    def commaAndValue[X](p: parser.Parser[X]):
+        _ = yield BasicParser.token(BasicParser.char(","))
+        v = yield BasicParser.token(p)
+        return v
+
+    @staticmethod
+    @parser.parser_monad
+    def commaSeparated[X](p: parser.Parser[X]):
+        v = yield p
+        vs = yield parser.ParserHelper.many(
+            BasicParser.commaAndValue(p)
+        )
+        return [v] + vs
+
+    @staticmethod
+    @parser.parser_monad
+    def nonEmptyList[X](p: parser.Parser[X]):
+        _ = yield BasicParser.token(BasicParser.char("["))
+        v = yield BasicParser.commaSeparated(p)
+        _ = yield BasicParser.token(BasicParser.char("]"))
+        return v
+
+    @staticmethod
+    @parser.parser_monad
+    def emptyList[X]():
+        _ = yield BasicParser.token(BasicParser.char("["))
+        _ = yield BasicParser.token(BasicParser.char("]"))
+        return []
+
+    @staticmethod
+    @parser.parser_monad
+    def list_literal[X](p: parser.Parser[X]):
+        v = yield parser.ParserHelper.either(
+            BasicParser.nonEmptyList(p), BasicParser.emptyList()
+        )
+        return v
