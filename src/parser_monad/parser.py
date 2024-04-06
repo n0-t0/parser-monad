@@ -115,7 +115,6 @@ def parser_monad[R](comprehension: Callable[..., Generator[Any, None, R]]) -> Ca
                     result_parser: Parser = next(iter)
                     while True:
                         result = result_parser.parse(res_s)
-                        print(result)
                         match result.value:
                             case either.Left(_):
                                 return result

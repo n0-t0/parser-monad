@@ -104,6 +104,14 @@ class BasicParser:
         return BasicParser.satisfy(str.isalpha, "expect letter")
 
     @staticmethod
+    def dicimal() -> parser.Parser[str]:
+        return BasicParser.satisfy(str.isdecimal, "expect dicimal")
+
+    @staticmethod
+    def numeric() -> parser.Parser[str]:
+        return BasicParser.satisfy(str.isnumeric, "expect numeric")
+
+    @staticmethod
     def digit() -> parser.Parser[str]:
         return BasicParser.satisfy(str.isdigit, "expect digit")
 
@@ -111,15 +119,24 @@ class BasicParser:
     @parser.parser_monad
     def int_number():
         v = yield parser.ParserHelper.some(BasicParser.digit())
-        return int("".join(v))
+        number_str = "".join(v)
+        try:
+            return int(number_str)
+        except ValueError:
+            yield parser.Parser.fail(f"Unable to cast '{number_str}' to int")
 
     @staticmethod
     @parser.parser_monad
     def float_number():
-        v1 = yield parser.ParserHelper.some(BasicParser.digit())
-        _ = yield BasicParser.token(BasicParser.char("."))
-        v2 = yield parser.ParserHelper.some(BasicParser.digit())
-        return float("".join(v1) + "." + "".join(v2))
+        integer_part = yield parser.ParserHelper.some(BasicParser.digit())
+        _ = yield BasicParser.char('.')
+        decimal_part = yield parser.ParserHelper.some(BasicParser.digit())
+
+        number_str = ''.join(integer_part) + '.' + ''.join(decimal_part)
+        try:
+            return float(number_str)
+        except ValueError:
+            yield parser.Parser.fail(f"Unable to cast '{number_str}' to float")
 
     @staticmethod
     @parser.parser_monad
@@ -179,4 +196,4 @@ class BasicParser:
             BasicParser.eof(),
         )
         all_lines = [first_line] + next_lines
-        return [line.rstrip('\r\n') for line in all_lines if line != ""]
+        return [line for line in all_lines if line != ""]
